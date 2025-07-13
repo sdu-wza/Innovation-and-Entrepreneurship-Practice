@@ -1,4 +1,3 @@
-
 // SM4 T-Table 优化版本
 
 #include <stdint.h>
