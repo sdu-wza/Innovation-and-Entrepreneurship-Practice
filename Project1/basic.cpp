@@ -1,5 +1,4 @@
-// sm4_optimized.c
-// 基于文档的 SM4 加密实现（含基础实现和 T-Table 优化）
+// 基于文档的 SM4 加密实现（基础实现）
 
 #include <stdint.h>
 #include <stdio.h>
