@@ -1,5 +1,5 @@
-// sm4_optimized.c
-// 基于文档的 SM4 加密实现（含基础实现和 T-Table 优化）
+
+// SM4 T-Table 优化版本
 
 #include <stdint.h>
 #include <stdio.h>
@@ -34,26 +34,62 @@ static const uint8_t sm4_sbox[256] = {
 };
 
 // =========================
-// T-Table 表（线性合并 SBox）
+// T-Table 表（预计算每个字节位置的贡献）
 // =========================
-static u32t T0[256];
+static u32t T0[256], T1[256], T2[256], T3[256];
 
-// 初始化 T 表
+// 基础版本的 T 变换函数
+u32t sm4_t_sub(u32t a) {
+    uint8_t a0 = (a >> 24) & 0xFF;
+    uint8_t a1 = (a >> 16) & 0xFF;
+    uint8_t a2 = (a >> 8) & 0xFF;
+    uint8_t a3 = a & 0xFF;
+
+    u32t b = (sm4_sbox[a0] << 24) | (sm4_sbox[a1] << 16) | (sm4_sbox[a2] << 8) | sm4_sbox[a3];
+
+    return b ^ rol(b, 2) ^ rol(b, 10) ^ rol(b, 18) ^ rol(b, 24);
+}
+
+// 正确的 T 表初始化 - 为每个字节位置单独计算
 void sm4_init_t_table() {
     for (int i = 0; i < 256; i++) {
-        u32t b = sm4_sbox[i];
-        u32t x = b | (b << 8) | (b << 16) | (b << 24);
-        T0[i] = x ^ rol(x, 2) ^ rol(x, 10) ^ rol(x, 18) ^ rol(x, 24);
+        u32t sbox_val = sm4_sbox[i];
+        
+        // T0: 字节在位置0 (最高字节)
+        u32t b0 = sbox_val << 24;
+        T0[i] = b0 ^ rol(b0, 2) ^ rol(b0, 10) ^ rol(b0, 18) ^ rol(b0, 24);
+        
+        // T1: 字节在位置1
+        u32t b1 = sbox_val << 16;
+        T1[i] = b1 ^ rol(b1, 2) ^ rol(b1, 10) ^ rol(b1, 18) ^ rol(b1, 24);
+        
+        // T2: 字节在位置2
+        u32t b2 = sbox_val << 8;
+        T2[i] = b2 ^ rol(b2, 2) ^ rol(b2, 10) ^ rol(b2, 18) ^ rol(b2, 24);
+        
+        // T3: 字节在位置3 (最低字节)
+        u32t b3 = sbox_val;
+        T3[i] = b3 ^ rol(b3, 2) ^ rol(b3, 10) ^ rol(b3, 18) ^ rol(b3, 24);
     }
 }
 
+// T-Table 查找函数
 u32t sm4_t_lookup(u32t a) {
     uint8_t a0 = (a >> 24) & 0xFF;
     uint8_t a1 = (a >> 16) & 0xFF;
     uint8_t a2 = (a >> 8) & 0xFF;
     uint8_t a3 = a & 0xFF;
-    return T0[a0] ^ rol(T0[a1], 8) ^ rol(T0[a2], 16) ^ rol(T0[a3], 24);
+
+    return T0[a0] ^ T1[a1] ^ T2[a2] ^ T3[a3];
 }
+
+#define SM4_CORE_4R(rk0, rk1, rk2, rk3)                         \
+do {                                                          \
+    tmp = m[1] ^ m[2] ^ m[3] ^ rk0; m[0] ^= sm4_t_sub(tmp); \
+    tmp = m[2] ^ m[3] ^ m[0] ^ rk1; m[1] ^= sm4_t_sub(tmp); \
+    tmp = m[3] ^ m[0] ^ m[1] ^ rk2; m[2] ^= sm4_t_sub(tmp); \
+    tmp = m[0] ^ m[1] ^ m[2] ^ rk3; m[3] ^= sm4_t_sub(tmp); \
+} while (0)
 
 #define SM4_CORE_TT_4R(rk0, rk1, rk2, rk3)                        \
 do {                                                            \
@@ -63,31 +99,52 @@ do {                                                            \
     tmp = m[0] ^ m[1] ^ m[2] ^ rk3; m[3] ^= sm4_t_lookup(tmp); \
 } while (0)
 
-// T-Table 优化版主函数
+// 基础版本加密核心
+void sm4_enc_core_basic(u32t *m, const u32t *rk) {
+    u32t tmp;
+    SM4_CORE_4R(rk[0], rk[1], rk[2], rk[3]);
+    SM4_CORE_4R(rk[4], rk[5], rk[6], rk[7]);
+    SM4_CORE_4R(rk[8], rk[9], rk[10], rk[11]);
+    SM4_CORE_4R(rk[12], rk[13], rk[14], rk[15]);
+    SM4_CORE_4R(rk[16], rk[17], rk[18], rk[19]);
+    SM4_CORE_4R(rk[20], rk[21], rk[22], rk[23]);
+    SM4_CORE_4R(rk[24], rk[25], rk[26], rk[27]);
+    SM4_CORE_4R(rk[28], rk[29], rk[30], rk[31]);
+
+    u32t tmp2 = m[0]; m[0] = m[3]; m[3] = tmp2;
+    tmp2 = m[1]; m[1] = m[2]; m[2] = tmp2;
+}
+
+// T-Table 优化版加密核心
 void sm4_enc_core_ttable(u32t *m, const u32t *rk) {
     u32t tmp;
     for (int i = 0; i < 32; i += 4) {
         SM4_CORE_TT_4R(rk[i], rk[i+1], rk[i+2], rk[i+3]);
     }
-    tmp = m[0]; m[0] = m[3]; m[3] = tmp;
-    tmp = m[1]; m[1] = m[2]; m[2] = tmp;
+    u32t tmp2 = m[0]; m[0] = m[3]; m[3] = tmp2;
+    tmp2 = m[1]; m[1] = m[2]; m[2] = tmp2;
 }
 
 // =========================
-// 测试主函数（T-Table版）
+// 测试主函数
 // =========================
 int main() {
+    // 初始化T表
+    sm4_init_t_table();
+    
     u32t m[4] = {0x01234567, 0x89abcdef, 0xfedcba98, 0x76543210};
     u32t rk[32];
+    
+    // 初始化轮密钥
     for (int i = 0; i < 32; i++) rk[i] = i;
 
-    sm4_init_t_table();
+    // 测试T-Table优化版本
     sm4_enc_core_ttable(m, rk);
-
-    printf("Encrypted block (T-Table):\n");
+    printf("T-Table version result:\n");
     for (int i = 0; i < 4; i++) {
         printf("%08x ", m[i]);
     }
     printf("\n");
+
     return 0;
 }
