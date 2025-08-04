@@ -1,4 +1,4 @@
-# 基于数字水印的图片泄露检测系统
+# Project2：基于数字水印的图片泄露检测系统
 
 ![Python](https://img.shields.io/badge/Python-3.7%2B-blue)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.5%2B-green)
