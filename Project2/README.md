@@ -12,18 +12,11 @@
 
 ### 2.1 DCT 基本原理
 二维离散余弦变换（2D Discrete Cosine Transform, DCT）定义为：
-\[
-F(u, v) = \frac{2}{N} C(u) C(v) \sum_{x=0}^{N-1} \sum_{y=0}^{N-1} 
-f(x, y) \cos\left[\frac{(2x+1)u\pi}{2N}\right] \cos\left[\frac{(2y+1)v\pi}{2N}\right]
-\]
+`F(u, v) = (2/N) C(u) C(v) Σ_{x=0}^{N-1} Σ_{y=0}^{N-1} f(x,y) cos[(2x+1)uπ/(2N)] cos[(2y+1)vπ/(2N)]`
+
 其中：
-\[
-C(w) = 
-\begin{cases}
-\frac{1}{\sqrt{2}}, & w = 0 \\
-1, & w \neq 0
-\end{cases}
-\]
+<pre> ```plaintext C(w) = { 1/sqrt(2), if w = 0 1, if w ≠ 0 } ``` </pre>
+
 - **低频系数**：位于左上角，表示图像整体亮度  
 - **高频系数**：位于右下角，表示图像细节与噪声  
 - **中频系数**：介于两者之间，适合嵌入水印（平衡不可见性与鲁棒性）
@@ -65,9 +58,8 @@ C(w) =
 
 3. **正确率计算**  
    设原水印为 $W$，提取结果为 $\hat{W}$，则正确率：
-   \[
-   \text{Accuracy} = \frac{\text{匹配字符数}}{\text{总字符数}} \times 100\%
-   \]
+   ` Accuracy = 匹配字符数/总字符数 x 100% `
+
 
 ---
 
