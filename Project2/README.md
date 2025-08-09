@@ -71,10 +71,9 @@ C(w) =
 
 ---
 
-## 4. 实验过程
+## 4. 实验结果与分析
 
-### 4.1 环境依赖
-```bash
-pip install opencv-python numpy
 
-pip install opencv-python numpy pillow scikit-image matplotlib
+
+
+## 5. 总结与改进方向
