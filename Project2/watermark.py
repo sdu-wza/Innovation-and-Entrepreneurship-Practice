@@ -1,132 +1,131 @@
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
-import os
 
-def embed_watermark(original_img_path, watermark_text, output_path, alpha=0.1):
-    # 读取原始图像
-    img = cv2.imread(original_img_path, cv2.IMREAD_GRAYSCALE)
-    
-    # 对图像进行DCT变换
-    dct = cv2.dct(np.float32(img)/255.0)
-    
-    # 将水印文本转换为二进制
-    watermark_binary = ''.join(format(ord(c), '08b') for c in watermark_text)
-    watermark_len = len(watermark_binary)
-    
-    # 在DCT系数中嵌入水印
-    rows, cols = dct.shape
-    pos = 0
-    
-    for i in range(rows):
-        for j in range(cols):
-            if pos < watermark_len:
-                # 修改中频系数嵌入水印
-                if 10 < i < 50 and 10 < j < 50:
-                    if watermark_binary[pos] == '1':
-                        dct[i,j] += alpha * abs(dct[i,j])
-                    else:
-                        dct[i,j] -= alpha * abs(dct[i,j])
-                    pos += 1
-    
-    # 逆DCT变换
-    watermarked_img = cv2.idct(dct) * 255.0
-    watermarked_img = np.uint8(np.clip(watermarked_img, 0, 255))
-    
-    # 保存水印图像
+# ====== 盲水印嵌入 ======
+def embed_watermark_blind(image_path, watermark_text, output_path):
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    img = np.float32(img)
+    h, w = img.shape
+
+    # 水印转成二进制
+    watermark_bin = ''.join(format(ord(c), '08b') for c in watermark_text)
+    wm_len = len(watermark_bin)
+    block_size = 8
+    wm_idx = 0
+
+    for i in range(0, h, block_size):
+        for j in range(0, w, block_size):
+            if wm_idx >= wm_len:
+                break
+            block = img[i:i+block_size, j:j+block_size]
+            if block.shape[0] < block_size or block.shape[1] < block_size:
+                continue
+            dct_block = cv2.dct(block)
+
+            # 选两个中频系数
+            p1 = (4, 3)
+            p2 = (3, 4)
+
+            bit = int(watermark_bin[wm_idx])
+            if bit == 1:
+                if dct_block[p1] < dct_block[p2]:
+                    dct_block[p1], dct_block[p2] = dct_block[p2], dct_block[p1]
+            else:
+                if dct_block[p1] > dct_block[p2]:
+                    dct_block[p1], dct_block[p2] = dct_block[p2], dct_block[p1]
+
+            img[i:i+block_size, j:j+block_size] = cv2.idct(dct_block)
+            wm_idx += 1
+
+    watermarked_img = np.uint8(np.clip(img, 0, 255))
     cv2.imwrite(output_path, watermarked_img)
-    
-    return watermarked_img
+    print(f"水印已嵌入，输出文件: {output_path}")
 
-def extract_watermark(watermarked_img_path, original_img_path, watermark_length, alpha=0.1):
-    # 读取原始图像和水印图像
-    original_img = cv2.imread(original_img_path, cv2.IMREAD_GRAYSCALE)
-    watermarked_img = cv2.imread(watermarked_img_path, cv2.IMREAD_GRAYSCALE)
-    
-    # 对两幅图像进行DCT变换
-    original_dct = cv2.dct(np.float32(original_img)/255.0)
-    watermarked_dct = cv2.dct(np.float32(watermarked_img)/255.0)
-    
-    # 提取水印
-    extracted_binary = ''
-    pos = 0
-    rows, cols = original_dct.shape
-    
-    for i in range(rows):
-        for j in range(cols):
-            if pos < watermark_length * 8:  # 每个字符8位
-                # 在中频系数中提取水印
-                if 10 < i < 50 and 10 < j < 50:
-                    if watermarked_dct[i,j] > original_dct[i,j]:
-                        extracted_binary += '1'
-                    else:
-                        extracted_binary += '0'
-                    pos += 1
-    
-    # 将二进制转换为字符串
-    watermark = ''
-    for i in range(0, len(extracted_binary), 8):
-        byte = extracted_binary[i:i+8]
-        watermark += chr(int(byte, 2))
-    
-    return watermark[:watermark_length]  # 返回指定长度的水印
 
-def robustness_tests(image_path, watermark_text):
-    # 嵌入水印
-    watermarked_img = embed_watermark(image_path, watermark_text, "/Users/apple/sdu-practice/Project2/watermarked.png")
-    
-    # 1. 旋转测试
-    rotated = cv2.rotate(watermarked_img, cv2.ROTATE_90_CLOCKWISE)
+# ====== 盲水印提取 ======
+def extract_watermark_blind(image_path, watermark_length):
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    img = np.float32(img)
+    h, w = img.shape
+    block_size = 8
+    bits = ''
+    wm_idx = 0
+
+    for i in range(0, h, block_size):
+        for j in range(0, w, block_size):
+            if wm_idx >= watermark_length * 8:
+                break
+            block = img[i:i+block_size, j:j+block_size]
+            if block.shape[0] < block_size or block.shape[1] < block_size:
+                continue
+            dct_block = cv2.dct(block)
+
+            p1 = (4, 3)
+            p2 = (3, 4)
+
+            if dct_block[p1] > dct_block[p2]:
+                bits += '1'
+            else:
+                bits += '0'
+            wm_idx += 1
+
+    watermark_text = ''.join(chr(int(bits[i:i+8], 2)) for i in range(0, len(bits), 8))
+    return watermark_text
+
+
+# ====== 鲁棒性测试 ======
+def robustness_tests(wm_path, wm_text):
+    wm_len = len(wm_text)
+
+    # 原图提取
+    original = extract_watermark_blind(wm_path, wm_len)
+    print(f"original: {original} (正确率: {calc_accuracy(wm_text, original)}%)")
+
+    # 旋转
+    img = cv2.imread(wm_path)
+    M = cv2.getRotationMatrix2D((img.shape[1]//2, img.shape[0]//2), 15, 1)
+    rotated = cv2.warpAffine(img, M, (img.shape[1], img.shape[0]))
     cv2.imwrite("/Users/apple/sdu-practice/Project2/rotated.png", rotated)
-    
-    # 2. 裁剪测试
-    h, w = watermarked_img.shape
-    cropped = watermarked_img[h//4:3*h//4, w//4:3*w//4]
-    cv2.imwrite("/Users/apple/sdu-practice/Project2/cropped.png", cropped)
-    
-    # 3. 对比度调整
-    contrast = np.clip(watermarked_img * 1.5, 0, 255).astype(np.uint8)
-    cv2.imwrite("/Users/apple/sdu-practice/Project2/contrast.png", contrast)
-    
-    # 4. 亮度调整
-    brightness = np.clip(watermarked_img + 50, 0, 255).astype(np.uint8)
-    cv2.imwrite("/Users/apple/sdu-practice/Project2/brightness.png", brightness)
-    
-    # 5. 添加噪声
-    noise = np.random.normal(0, 25, watermarked_img.shape)
-    noisy = np.clip(watermarked_img + noise, 0, 255).astype(np.uint8)
-    cv2.imwrite("/Users/apple/sdu-practice/Project2/noisy.png", noisy)
-    
-    # 提取各测试图像中的水印
-    original_path = image_path
-    wm_length = len(watermark_text)
-    
-    results = {
-        "original": extract_watermark("/Users/apple/sdu-practice/Project2/watermarked.png", original_path, wm_length),
-        "rotated": extract_watermark("/Users/apple/sdu-practice/Project2/rotated.png", original_path, wm_length),
-        "cropped": extract_watermark("/Users/apple/sdu-practice/Project2/cropped.png", original_path, wm_length),
-        "contrast": extract_watermark("/Users/apple/sdu-practice/Project2/contrast.png", original_path, wm_length),
-        "brightness": extract_watermark("/Users/apple/sdu-practice/Project2/brightness.png", original_path, wm_length),
-        "noisy": extract_watermark("/Users/apple/sdu-practice/Project2/noisy.png", original_path, wm_length)
-    }
-    
-    return results
+    rot_text = extract_watermark_blind("/Users/apple/sdu-practice/Project2/rotated.png", wm_len)
+    print(f"rotated: {rot_text} (正确率: {calc_accuracy(wm_text, rot_text)}%)")
 
+    # 裁剪
+    cropped = img[50:-50, 50:-50]
+    cv2.imwrite("/Users/apple/sdu-practice/Project2/cropped.png", cropped)
+    crop_text = extract_watermark_blind("/Users/apple/sdu-practice/Project2/cropped.png", wm_len)
+    print(f"cropped: {crop_text} (正确率: {calc_accuracy(wm_text, crop_text)}%)")
+
+    # 调对比度
+    contrast = cv2.convertScaleAbs(img, alpha=1.5, beta=0)
+    cv2.imwrite("/Users/apple/sdu-practice/Project2/contrast.png", contrast)
+    cont_text = extract_watermark_blind("/Users/apple/sdu-practice/Project2/contrast.png", wm_len)
+    print(f"contrast: {cont_text} (正确率: {calc_accuracy(wm_text, cont_text)}%)")
+
+    # 调亮度
+    brightness = cv2.convertScaleAbs(img, alpha=1, beta=50)
+    cv2.imwrite("/Users/apple/sdu-practice/Project2/brightness.png", brightness)
+    bright_text = extract_watermark_blind("/Users/apple/sdu-practice/Project2/brightness.png", wm_len)
+    print(f"brightness: {bright_text} (正确率: {calc_accuracy(wm_text, bright_text)}%)")
+
+    # 加噪声
+    noisy = np.array(img, dtype=np.float32)
+    noise = np.random.normal(0, 10, noisy.shape)
+    noisy = np.uint8(np.clip(noisy + noise, 0, 255))
+    cv2.imwrite("/Users/apple/sdu-practice/Project2/noisy.png", noisy)
+    noisy_text = extract_watermark_blind("/Users/apple/sdu-practice/Project2/noisy.png", wm_len)
+    print(f"noisy: {noisy_text} (正确率: {calc_accuracy(wm_text, noisy_text)}%)")
+
+
+def calc_accuracy(expected, actual):
+    correct = sum(1 for e, a in zip(expected, actual) if e == a)
+    return round(correct / len(expected) * 100, 1)
+
+
+# ====== 主程序 ======
 if __name__ == "__main__":
-    # 测试图像和水印文本
-    image_path = "/Users/apple/sdu-practice/Project2/1.png"  # 测试图像
-    print(f"文件存在: {os.path.exists(image_path)}")
-    print(f"绝对路径: {os.path.abspath(image_path)}")
-    watermark_text = "SECRET2025"  # 10字符水印
-    
-    # 嵌入和提取演示
-    watermarked_img = embed_watermark(image_path, watermark_text, "/Users/apple/sdu-practice/Project2/watermarked.png")
-    extracted = extract_watermark("/Users/apple/sdu-practice/Project2/watermarked.png", image_path, len(watermark_text))
-    print(f"提取的水印: {extracted}")
-    
-    # 鲁棒性测试
-    test_results = robustness_tests(image_path, watermark_text)
-    
-    print("\n鲁棒性测试结果:")
-    for test, result in test_results.items():
-        print(f"{test}: {result} (正确率: {sum(1 for a, b in zip(watermark_text, result) if a == b)/len(watermark_text)*100:.1f}%)")
+    input_image = "/Users/apple/sdu-practice/Project2/1.png"   # 原始图片
+    watermarked_image = "/Users/apple/sdu-practice/Project2/watermarked.png"
+    watermark_text = "SECRET2025"
+
+    embed_watermark_blind(input_image, watermark_text, watermarked_image)
+    robustness_tests(watermarked_image, watermark_text)
