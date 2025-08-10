@@ -1,4 +1,4 @@
-# Project3: Poseidon2 哈希算法 Circom 电路实现与 Groth16 零知识证明
+# Project3：Poseidon2 哈希算法 Circom 电路实现与 Groth16 零知识证明
 
 ## 1. 项目背景与意义
 
