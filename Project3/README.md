@@ -1,4 +1,4 @@
-# Poseidon2 哈希算法 Circom 电路实现与 Groth16 零知识证明
+# Project3: Poseidon2 哈希算法 Circom 电路实现与 Groth16 零知识证明
 
 ## 1. 项目背景与意义
 
@@ -18,9 +18,9 @@ Poseidon2 采用 Sponge 结构进行吸收和挤压。核心状态大小为 \( t
 
 1. **加轮常数**：
 
-\[
-\mathbf{s} \leftarrow \mathbf{s} + \mathbf{c}_r
-\]
+
+`\mathbf{s} \leftarrow \mathbf{s} + \mathbf{c}_r`
+
 
 其中 \(\mathbf{s}\) 是当前状态向量，\(\mathbf{c}_r\) 是第 \(r\) 轮的轮常数。
 
@@ -32,9 +32,9 @@ Poseidon2 采用 Sponge 结构进行吸收和挤压。核心状态大小为 \( t
 
 3. **MDS 矩阵线性变换**：
 
-\[
+`
 \mathbf{s} \leftarrow M \times \mathbf{s}
-\]
+`
 
 其中 \(M\) 是满足最大距离可分离性（Maximum Distance Separable）的矩阵，保证良好的扩散性。
 
@@ -70,7 +70,7 @@ Poseidon2 采用 Sponge 结构进行吸收和挤压。核心状态大小为 \( t
 利用电路组件 `Pow5` 计算输入的五次方：
 
 
-x^5 = x \times x^2 \times x^2
+`x^5 = x \times x^2 \times x^2`
 
 
 用中间变量减少约束数。
@@ -107,6 +107,8 @@ x^5 = x \times x^2 \times x^2
 
 ```bash
 circom poseidon2.circom --r1cs --wasm --sym
+```
+![image]()
 
 ### 5.3 准备输入
 
@@ -114,12 +116,12 @@ circom poseidon2.circom --r1cs --wasm --sym
 
 ```bash
 echo '{"in": [1, 2, 3]}' > input.json
-
+```
 ### 5.4 计算 Witness
 
 ```bash
 node generate_witness.js poseidon2.wasm input.json witness.wtns
-
+```
 ### 5.5 可信设置
 
 ```bash
@@ -128,22 +130,24 @@ snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau --name="First con
 snarkjs powersoftau prepare phase2 pot12_0001.ptau pot12_final.ptau -v
 snarkjs groth16 setup poseidon2.r1cs pot12_final.ptau poseidon2_0000.zkey
 snarkjs zkey contribute poseidon2_0000.zkey poseidon2_0001.zkey --name="Second contribution" -v
-
+```
 ### 5.6 导出验证密钥
 
 ```bash
 snarkjs zkey export verificationkey poseidon2_0001.zkey verification_key.json
-
+```
 ### 5.7 生成证明
 
 ```bash
 snarkjs groth16 prove poseidon2_0001.zkey witness.wtns proof.json public.json
-
+```
 ### 5.8 验证证明
 
 ```bash
 snarkjs groth16 verify verification_key.json public.json proof.json
+```
 
+![image]()
 ---
 
 ## 6. 实验结果与分析
