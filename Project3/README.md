@@ -108,7 +108,7 @@ Poseidon2 采用 Sponge 结构进行吸收和挤压。核心状态大小为 \( t
 ```bash
 circom poseidon2.circom --r1cs --wasm --sym
 ```
-![image]()
+![image](https://github.com/sdu-wza/Innovation-and-Entrepreneurship-Practice/blob/main/Project3/image/poseidon2.png)
 
 ### 5.3 准备输入
 
@@ -147,7 +147,7 @@ snarkjs groth16 prove poseidon2_0001.zkey witness.wtns proof.json public.json
 snarkjs groth16 verify verification_key.json public.json proof.json
 ```
 
-![image]()
+![image](https://github.com/sdu-wza/Innovation-and-Entrepreneurship-Practice/blob/main/Project3/image/verify.png)
 ---
 
 ## 6. 实验结果与分析
