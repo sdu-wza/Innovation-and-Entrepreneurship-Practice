@@ -46,10 +46,21 @@ P_1(x) = x \oplus (x \lll 15) \oplus (x \lll 23)
 
 ### 优化点
 
-- 循环展开与中间变量复用，减少函数调用和内存访问。
-- 采用宏定义实现高效位操作。
-- 对数据块处理进行边界优化，避免多余复制。
+1. opt1 优化方案
+   
+ - 循环展开：将64轮压缩展开为线性操作
 
+ - 预计算策略：提前计算W/Wp数组（牺牲3KB内存）
+
+ - 宏函数内联：FF/GG/P0/P1等关键操作用宏实现
+   
+2. opt2 优化方案
+
+ - 动态派发：运行时选择最优实现（当前版本暂未实现多版本）
+
+ - 内存预取：使用__builtin_prefetch减少cache miss
+
+ - 批处理优化：优先处理完整64字节块
 
 ### 运行结果
 
@@ -58,6 +69,8 @@ P_1(x) = x \oplus (x \lll 15) \oplus (x \lll 23)
 
 优化：
 ![image](https://github.com/sdu-wza/Innovation-and-Entrepreneurship-Practice/blob/main/Project4/image/optimized.png)
+
+根据结果可知优化效果显著。
 
 ## b) SM3长度扩展攻击实验
 
