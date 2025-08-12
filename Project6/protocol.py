@@ -1,9 +1,3 @@
-"""
-gpc_ecc_demo.py
-ECC-based demo of Password Checkup-style private membership check
-(secp256r1 / P-256). This is a demonstration; see notes below for security caveats.
-"""
-
 import hashlib
 import os
 import math
