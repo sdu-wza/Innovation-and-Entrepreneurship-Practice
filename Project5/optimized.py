@@ -1,4 +1,3 @@
-# sm2_fixed.py
 import hashlib
 import secrets
 from typing import Tuple, List, Dict, Optional
