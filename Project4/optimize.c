@@ -1,7 +1,3 @@
-// sm3_opt_fixed.c
-// Fixed SM3 optimized implementations (correctness-first).
-// Compile: clang -O3 sm3_opt_fixed.c -o sm3_opt_fixed
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
